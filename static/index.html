@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="LocalLift evidence-grounded local SEO triage workflow">
+  <title>LocalLift | Local SEO triage</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand-lockup">
+      <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+      <div>
+        <div class="brand">LocalLift</div>
+        <div class="brand-subtitle">Local SEO triage</div>
+      </div>
+    </div>
+    <div class="topbar-actions">
+      <button id="keywords-button" class="topbar-button" type="button">Keywords <span id="keywords-count">0</span></button>
+      <button id="projects-button" class="topbar-button" type="button">Projects <span id="projects-count">0</span></button>
+      <div class="system-status">
+        <span id="api-dot" class="status-dot"></span>
+        <span id="api-status">Checking service</span>
+        <span class="divider" aria-hidden="true"></span>
+        <span id="model-status">Rules only</span>
+      </div>
+    </div>
+  </header>
+
+  <section class="control-band" aria-labelledby="new-audit-title">
+    <div class="control-inner">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">New audit</p>
+          <h1 id="new-audit-title">Analyze a service page</h1>
+        </div>
+        <div class="heading-actions">
+          <div class="scope-switch" role="radiogroup" aria-label="Audit scope">
+            <button class="scope-option is-active" type="button" role="radio" aria-checked="true" data-scope="page">Single page</button>
+            <button class="scope-option" type="button" role="radio" aria-checked="false" data-scope="site">Site crawl</button>
+          </div>
+          <button id="demo-button" class="button button-secondary" type="button">Load sample portfolio</button>
+        </div>
+      </div>
+
+      <form id="audit-form">
+        <div id="field-grid" class="field-grid">
+          <label class="field">
+            <span>Business</span>
+            <input id="business-name" name="business_name" autocomplete="organization" maxlength="100" required value="Everwell MedSpa">
+          </label>
+          <label class="field">
+            <span>City</span>
+            <input id="city" name="city" autocomplete="address-level2" maxlength="80" required value="Austin">
+          </label>
+          <label class="field">
+            <span id="service-label">Primary service</span>
+            <input id="service" name="service" maxlength="100" required value="Laser Hair Removal">
+          </label>
+          <label id="crawl-limit-field" class="field" hidden>
+            <span>Crawl limit</span>
+            <select id="max-pages" name="max_pages">
+              <option value="10">10 pages</option>
+              <option value="25" selected>25 pages</option>
+              <option value="50">50 pages</option>
+            </select>
+          </label>
+        </div>
+        <div class="url-row">
+          <label class="field field-grow">
+            <span id="url-label">Public page URL</span>
+            <input id="url" name="url" type="url" inputmode="url" placeholder="https://example.com/service-page" required>
+          </label>
+          <label id="ai-toggle-wrap" class="toggle-control">
+            <input id="use-ai" type="checkbox">
+            <span class="toggle-track" aria-hidden="true"><span></span></span>
+            <span>Claude synthesis</span>
+          </label>
+          <button id="analyze-button" class="button button-primary" type="submit">Analyze page</button>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <main class="workspace">
+    <aside class="portfolio-panel" aria-label="Portfolio audits">
+      <div class="panel-toolbar">
+        <div>
+          <p class="eyebrow">Portfolio</p>
+          <h2><span id="portfolio-count">0</span> audits</h2>
+        </div>
+        <label class="compact-field">
+          <span class="sr-only">Filter portfolio</span>
+          <select id="portfolio-filter">
+            <option value="all">All priorities</option>
+            <option value="critical">Critical</option>
+            <option value="high">High</option>
+            <option value="clean">No high issues</option>
+          </select>
+        </label>
+      </div>
+      <div id="portfolio-list" class="portfolio-list" aria-live="polite"></div>
+    </aside>
+
+    <section class="result-panel" aria-live="polite">
+      <div id="empty-state" class="empty-state">
+        <div class="empty-glyph" aria-hidden="true">LL</div>
+        <h2>No audits in this session</h2>
+      </div>
+
+      <div id="result-view" hidden>
+        <div class="result-header">
+          <div class="result-title-wrap">
+            <p id="result-context" class="eyebrow"></p>
+            <h2 id="result-title"></h2>
+            <a id="result-url" class="result-url" target="_blank" rel="noopener noreferrer"></a>
+          </div>
+          <div class="result-actions">
+            <span id="source-badge" class="source-badge"></span>
+            <button id="add-project-button" class="button button-project button-small" type="button">Add to project</button>
+            <button id="export-button" class="button button-secondary button-small" type="button">Export JSON</button>
+            <button id="csv-button" class="button button-secondary button-small" type="button">Export CSV</button>
+            <button id="pdf-button" class="button button-secondary button-small" type="button">Export PDF</button>
+          </div>
+        </div>
+
+        <div id="metrics" class="metrics"></div>
+
+        <div class="tabs" role="tablist" aria-label="Audit views">
+          <button class="tab is-active" type="button" role="tab" aria-selected="true" data-tab="overview">Work queue</button>
+          <button class="tab" type="button" role="tab" aria-selected="false" data-tab="evidence">Evidence</button>
+          <button class="tab" type="button" role="tab" aria-selected="false" data-tab="ai">AI synthesis</button>
+        </div>
+
+        <div id="tab-content" class="tab-content"></div>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="projects-dialog" class="projects-dialog" aria-labelledby="projects-title">
+    <div class="dialog-shell">
+      <header class="dialog-header">
+        <div>
+          <p class="eyebrow">Workspace</p>
+          <h2 id="projects-title">Projects</h2>
+        </div>
+        <div class="dialog-actions">
+          <button id="new-project-button" class="button button-secondary" type="button">New project</button>
+          <button id="close-projects-button" class="icon-button" type="button" title="Close projects" aria-label="Close projects">&times;</button>
+        </div>
+      </header>
+
+      <div id="project-create-panel" class="project-create-panel" hidden>
+        <form id="project-form">
+          <div class="project-form-grid">
+            <label class="field">
+              <span>Project name</span>
+              <input id="project-name" name="name" maxlength="100" required>
+            </label>
+            <label class="field">
+              <span>Business</span>
+              <input id="project-business" name="business_name" maxlength="100" required>
+            </label>
+            <label class="field">
+              <span>City</span>
+              <input id="project-city" name="city" maxlength="80">
+            </label>
+            <label class="field">
+              <span>Main site URL</span>
+              <input id="project-url" name="site_url" type="url" required>
+            </label>
+          </div>
+          <div class="project-form-actions">
+            <button id="cancel-project-button" class="button button-secondary" type="button">Cancel</button>
+            <button class="button button-primary" type="submit">Create project</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="projects-layout">
+        <aside id="projects-list" class="projects-list" aria-label="Saved projects"></aside>
+        <section id="project-detail" class="project-detail"></section>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="keywords-dialog" class="keywords-dialog" aria-labelledby="keywords-title">
+    <div class="dialog-shell">
+      <header class="dialog-header">
+        <div>
+          <p class="eyebrow">Semrush</p>
+          <h2 id="keywords-title">Keyword research</h2>
+        </div>
+        <button id="close-keywords-button" class="icon-button" type="button" title="Close keyword research" aria-label="Close keyword research">&times;</button>
+      </header>
+
+      <form id="keywords-form" class="keywords-form">
+        <label class="field keyword-input-field">
+          <span>Keywords, one per line</span>
+          <textarea id="keywords-input" name="keywords" rows="4" maxlength="2560" placeholder="laser hair removal austin&#10;botox austin" required></textarea>
+        </label>
+        <label class="field keyword-country-field">
+          <span>Database</span>
+          <select id="keywords-country" name="country">
+            <option value="US" selected>United States</option>
+            <option value="AU">Australia</option>
+            <option value="CA">Canada</option>
+            <option value="NZ">New Zealand</option>
+            <option value="PH">Philippines</option>
+            <option value="UK">United Kingdom</option>
+          </select>
+        </label>
+        <button id="research-keywords-button" class="button button-primary" type="submit">Research (20 units each)</button>
+      </form>
+
+      <div id="keywords-notice" class="keyword-notice" hidden></div>
+
+      <div class="keyword-toolbar">
+        <div>
+          <p class="eyebrow">Monitor</p>
+          <h3><span id="monitored-keywords-count">0</span> tracked keywords</h3>
+        </div>
+        <div class="dialog-actions">
+          <button id="refresh-keywords-button" class="button button-project button-small" type="button" disabled>Refresh selected</button>
+          <button id="export-keywords-button" class="button button-secondary button-small" type="button" disabled>Export CSV</button>
+        </div>
+      </div>
+
+      <div class="keyword-table-wrap">
+        <table class="keyword-table">
+          <thead>
+            <tr>
+              <th class="keyword-check"><span class="sr-only">Select</span></th>
+              <th>Keyword</th>
+              <th>DB</th>
+              <th>Volume</th>
+              <th>Change</th>
+              <th>KD</th>
+              <th>CPC</th>
+              <th>Intent</th>
+              <th>Updated</th>
+              <th><span class="sr-only">Actions</span></th>
+            </tr>
+          </thead>
+          <tbody id="keywords-table-body"></tbody>
+        </table>
+        <div id="keywords-empty" class="keyword-empty">No monitored keywords.</div>
+      </div>
+    </div>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="/app.js" defer></script>
+</body>
+</html>
